@@ -17,12 +17,10 @@ func main() {
 
 	// create the handlers
 	ph := handlers.NewProducts(l)
-	goodByeHandler := handlers.NewGoodbye(l)
 
 	// create new serve mux and register the handlers
 	sm := http.NewServeMux()
 	sm.Handle("/", ph)
-	sm.Handle("/goodbye", goodByeHandler)
 
 	// create a new server
 	server := &http.Server{
@@ -44,13 +42,13 @@ func main() {
 	}()
 
 	// trap sigtermn and interrupt or gracefully shutdown server
-	sigChan := make(chan os.Signal, 2)
+	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt)
 	signal.Notify(sigChan, syscall.SIGTERM)
 
 	sig := <-sigChan
 	l.Println("Received terminate, graceful shutdown", sig)
 
-	tc , _:= context.WithTimeout(context.Background(), 30 * time.Second)
+	tc, _:= context.WithTimeout(context.Background(), 30 * time.Second)
 	server.Shutdown(tc)
 }
