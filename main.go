@@ -36,7 +36,7 @@ func main() {
 
 	// start the server
 	go func() {
-		l.Println("listening on port 9090...")
+		l.Println("listening on port :9090...")
 		err := server.ListenAndServe()
 		if err != nil {
 			l.Fatal(err)
