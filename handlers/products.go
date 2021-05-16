@@ -1,7 +1,22 @@
+// Package classification of Product API
+//
+// Documentation for Product API
+//
+// Schemes: http
+// BasePath: /
+// Version: 1.0.0
+//
+// Consumes:
+// - application/json
+//
+// Produces:
+// - application/json
+// swagger:meta
 package handlers
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"product_api/data"
@@ -68,12 +83,25 @@ type KeyProduct struct{}
 
 func (p Products) MiddlewareProductValidation(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-
 		product := data.Product{}
 
+		// deserialize the product
 		err := product.FromJSON(r.Body)
 		if err != nil {
-			http.Error(rw, "Unable to unmarshal json", http.StatusBadRequest)
+			p.l.Println("[ERROR] deserializing product")
+			http.Error(rw, "Error readig product", http.StatusBadRequest)
+			return
+		}
+
+		// validate the product
+		err = product.Validate()
+		if err != nil {
+			p.l.Println("[ERROR] validating product")
+			http.Error(
+				rw,
+				fmt.Sprintf("Incorrect product field: %s", err),
+				http.StatusBadRequest,
+			)
 			return
 		}
 
