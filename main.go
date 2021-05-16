@@ -2,13 +2,15 @@ package main
 
 import (
 	"context"
-	"http_server/handlers"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"product_api/handlers"
 	"syscall"
 	"time"
+
+	"github.com/gorilla/mux"
 )
 
 func main() {
@@ -19,8 +21,23 @@ func main() {
 	ph := handlers.NewProducts(l)
 
 	// create new serve mux and register the handlers
-	sm := http.NewServeMux()
-	sm.Handle("/", ph)
+	sm := mux.NewRouter()
+
+	// get router
+	getRouter := sm.Methods(http.MethodGet).Subrouter()
+	getRouter.HandleFunc("/", ph.GetProducts)
+
+	// put router
+	putRouter := sm.Methods(http.MethodPut).Subrouter()
+	putRouter.HandleFunc("/{id:[0-9]+}", ph.UpdateProduct)
+	putRouter.Use(ph.MiddlewareProductValidation)
+
+
+	// post router
+	postRouter := sm.Methods(http.MethodPost).Subrouter()
+	postRouter.HandleFunc("/", ph.AddProduct)
+	postRouter.Use(ph.MiddlewareProductValidation)
+
 
 	// create a new server
 	server := &http.Server{
@@ -41,7 +58,7 @@ func main() {
 		}
 	}()
 
-	// trap sigtermn and interrupt or gracefully shutdown server
+	// trap sigterm and interrupt or gracefully shutdown server
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt)
 	signal.Notify(sigChan, syscall.SIGTERM)
@@ -49,6 +66,7 @@ func main() {
 	sig := <-sigChan
 	l.Println("Received terminate, graceful shutdown", sig)
 
-	tc, _:= context.WithTimeout(context.Background(), 30 * time.Second)
+	tc, cancel := context.WithTimeout(context.Background(), 30 * time.Second)
+	cancel()
 	server.Shutdown(tc)
 }

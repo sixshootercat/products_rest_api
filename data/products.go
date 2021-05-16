@@ -9,14 +9,14 @@ import (
 
 // Product defines the structure for an API product
 type Product struct {
-	ID          int `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
+	ID          int     `json:"id"`
+	Name        string  `json:"name"`
+	Description string  `json:"description"`
 	Price       float32 `json:"price"`
-	SKU         string `json:"sku"`
-	CreatedAt   string `json:"-"`
-	UpdatedAt   string `json:"-"`
-	DeletedAt   string `json:"-"`
+	SKU         string  `json:"sku"`
+	CreatedAt   string  `json:"-"`
+	UpdatedAt   string  `json:"-"`
+	DeletedAt   string  `json:"-"`
 }
 
 // Products is a collection of Product
@@ -70,13 +70,14 @@ func findProduct(id int) (*Product, int, error) {
 	return nil, -1, ErrProductNotFound
 }
 
+// generates a new id for each new record inserted to the data store
 func getNextID() int {
 	lp := productList[len(productList) - 1]
 	return lp.ID + 1
 }
 
 
-// productList is a hardcoded list of products
+// productList is a hardcoded list of products and represents the data store (i.e. database)
 var productList = Products{
 	&Product{
 		ID:          1,
