@@ -25,7 +25,28 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// Products is an http handler
+// A list of products returns in the response
+// swagger:response productsResponse
+type productsResponseWrapper struct {
+	// All products in the datastore
+	// in: body
+	Body []data.Product
+}
+
+// swagger:parameters deleteProduct
+type productIDParameterWrapper struct {
+	// The id of the product to delete from the database
+	// in: path
+	// required: true
+	ID int `json:"id"`
+}
+
+// swagger:response noContent
+type productsNoContent struct {
+
+}
+
+// Products is an http.Handler
 type Products struct {
 	l *log.Logger
 }
@@ -35,53 +56,9 @@ func NewProducts(l *log.Logger) *Products {
 	return &Products{l}
 }
 
-// GetProducts returns the products from the data store
-func (p *Products) GetProducts(rw http.ResponseWriter, r *http.Request) {
-	p.l.Println("handle GET products")
-
-	// fetch the products from the data store
-	lp := data.GetProducts()
-
-	// serialize the list to JSON
-	err := lp.ToJSON(rw)
-	if err != nil {
-		http.Error(rw, "Unable to marshal json", http.StatusInternalServerError)
-	}
-}
-
-func (p *Products) AddProduct(rw http.ResponseWriter, r *http.Request) {
-	p.l.Println("handle POST product")
-
-	product := r.Context().Value(KeyProduct{}).(data.Product)
-	data.AddProduct(&product)
-}
-
-func (p Products) UpdateProduct(rw http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id, err := strconv.Atoi(vars["id"])
-	if err != nil {
-		http.Error(rw, "Unable to convert id", http.StatusBadRequest)
-		return
-	}
-
-	p.l.Println("handle PUT product", id)
-	product := r.Context().Value(KeyProduct{}).(data.Product) // cast to data.Product
-
-	err = data.UpdateProduct(id, &product)
-	if err == data.ErrProductNotFound {
-		http.Error(rw, "Product not found", http.StatusNotFound)
-		return
-	}
-
-	if err != nil {
-		http.Error(rw, "Product not found", http.StatusNotFound)
-		return
-	}
-}
-
 type KeyProduct struct{}
 
-func (p Products) MiddlewareProductValidation(next http.Handler) http.Handler {
+func(p Products) MiddlewareProductValidation(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		product := data.Product{}
 
@@ -112,4 +89,18 @@ func (p Products) MiddlewareProductValidation(next http.Handler) http.Handler {
 		// calls the next handler which can be another middleware in the chain of the final handler
 		next.ServeHTTP(rw, r)
 	})
+}
+
+func GetProductID(r *http.Request) int {
+	// parse the product id from the url
+	vars := mux.Vars(r)
+
+	// convert the id into an integer and return
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		// should never happen
+		panic(err)
+	}
+
+	return id
 }
