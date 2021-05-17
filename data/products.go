@@ -11,7 +11,12 @@ import (
 )
 
 // Product defines the datastore structure for a product
+// swagger:model
 type Product struct {
+	// the id for this user
+	//
+	// required: true
+	// min: 1
 	ID          int     `json:"id"`
 	Name        string  `json:"name" validate:"required"`
 	Description string  `json:"description"`
@@ -57,6 +62,19 @@ func (p *Product) FromJSON(r io.Reader) error {
 // returns a list of products
 func GetProducts() Products{
 	return productList
+}
+
+func DeleteProduct(id int) error{
+	_, pos, err := findProduct(id)
+	if err != nil {
+		return err
+	}
+
+	copy(productList[pos:], productList[pos + 1:])
+	productList[len(productList) - 1] = &Product{}
+	productList = productList[:len(productList) - 1]
+
+	return nil
 }
 
 func AddProduct(p *Product) {
