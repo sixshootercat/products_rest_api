@@ -1,136 +1,142 @@
 package data
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
-	"regexp"
-	"time"
-
-	"github.com/go-playground/validator"
 )
 
-// Product defines the datastore structure for a product
+// ErrProductNotFound is an error raised when a product can not be found in the database
+var ErrProductNotFound = fmt.Errorf("Product not found")
+
+// Product defines the structure for an API product
 // swagger:model
 type Product struct {
-	// the id for this user
+	// the id for the product
+	//
+	// required: false
+	// min: 1
+	ID int `json:"id"` // Unique identifier for the product
+
+	// the name for this poduct
 	//
 	// required: true
-	// min: 1
-	ID          int     `json:"id"`
-	Name        string  `json:"name" validate:"required"`
-	Description string  `json:"description"`
-	Price       float32 `json:"price" validate:"gt=0"`
-	SKU         string  `json:"sku" validate:"required,sku"`
-	CreatedAt   string  `json:"-"`
-	UpdatedAt   string  `json:"-"`
-	DeletedAt   string  `json:"-"`
+	// max length: 255
+	Name string `json:"name" validate:"required"`
+
+	// the description for this poduct
+	//
+	// required: false
+	// max length: 10000
+	Description string `json:"description"`
+
+	// the price for the product
+	//
+	// required: true
+	// min: 0.01
+	Price float32 `json:"price" validate:"required,gt=0"`
+
+	// the SKU for the product
+	//
+	// required: true
+	// pattern: [a-z]+-[a-z]+-[a-z]+
+	SKU string `json:"sku" validate:"sku"`
 }
 
-func (p *Product) Validate() error {
-	validate := validator.New()
-	validate.RegisterValidation("sku", validateSKU)
-	return validate.Struct(p)
-}
-
-// custom validation function
-func validateSKU(fl validator.FieldLevel) bool {
-	// sku is of this format: abc-defg-hijk
-	reg := regexp.MustCompile(`[a-z]+-[a-z]+-[a-z]+`)
-	matches := reg.FindAllString(fl.Field().String(), -1)
-
-	return len(matches) == 1
-}
-
-// Products is a collection of Product
+// Products defines a slice of Product
 type Products []*Product
 
-// ToJSON serializes the contents of the collection to JSON.
-// NewEncoder provides better perf than json.Unmarshal as it does
-// not have to buffer the output into an in memory slice of bytes.
-// This reduces allocations and the overhead of the service
-func (p *Products) ToJSON(w io.Writer) error {
-	e := json.NewEncoder(w)
-	return e.Encode(p)
-}
-
-func (p *Product) FromJSON(r io.Reader) error {
-	e := json.NewDecoder(r)
-	return e.Decode(p)
-}
-
-// returns a list of products
-func GetProducts() Products{
+// GetProducts returns all products from the database
+func GetProducts() Products {
 	return productList
 }
 
-func DeleteProduct(id int) error{
-	_, pos, err := findProduct(id)
-	if err != nil {
-		return err
+// GetProductByID returns a single product which matches the id from the
+// database.
+// If a product is not found this function returns a ProductNotFound error
+func GetProductByID(id int) (*Product, error) {
+	i := findIndexByProductID(id)
+	if id == -1 {
+		return nil, ErrProductNotFound
 	}
 
-	copy(productList[pos:], productList[pos + 1:])
-	productList[len(productList) - 1] = &Product{}
-	productList = productList[:len(productList) - 1]
+	return productList[i], nil
+}
+
+// UpdateProduct replaces a product in the database with the given
+// item.
+// If a product with the given id does not exist in the database
+// this function returns a ProductNotFound error
+func UpdateProduct(prod Product) error {
+	i := findIndexByProductID(prod.ID)
+	if i == -1 {
+		return ErrProductNotFound
+	}
+
+	// update the product in the DB
+	productList[i] = &prod
 
 	return nil
 }
 
-func AddProduct(p *Product) {
-	p.ID = getNextID()
-	productList = append(productList, p)
+// AddProduct adds a new product to the database
+func AddProduct(prod Product) {
+	// get the next id in sequence
+	maxID := productList[len(productList) - 1].ID
+	prod.ID = maxID + 1
+	productList = append(productList, &prod)
 }
 
-func UpdateProduct(id int, p *Product) error{
-	_, pos, err := findProduct(id)
-	if err != nil {
-		return err
+// DeleteProduct deletes a product from the database
+func DeleteProduct(id int) error {
+	i := findIndexByProductID(id)
+
+	if i == -1 {
+		return ErrProductNotFound
 	}
 
-	p.ID = id
-	productList[pos] = p
+	productList = append(productList[:i], productList[i+1:]...)
 
 	return nil
 }
 
-var ErrProductNotFound = fmt.Errorf("Product not found")
-
-func findProduct(id int) (*Product, int, error) {
+// findIndex finds the index of a product in the database
+// returns -1 when product cannot be found
+func findIndexByProductID(id int) int {
 	for i, p := range productList {
 		if p.ID == id {
-			return p, i, nil
+			return i
 		}
 	}
 
-	return nil, -1, ErrProductNotFound
+	return -1
 }
 
-// generates a new id for each new record inserted to the data store
-func getNextID() int {
-	lp := productList[len(productList) - 1]
-	return lp.ID + 1
-}
-
-
-// productList is a hardcoded list of products and represents the data store (i.e. database)
 var productList = Products{
-	&Product{
+	{
 		ID:          1,
 		Name:        "Latte",
-		Description: "Milky coffee",
-		SKU:         "qwerty123",
-		Price:       2.49,
-		CreatedAt:   time.Now().UTC().String(),
-		UpdatedAt:   time.Now().UTC().String(),
+		Description: "Frothy milky coffee",
+		Price:       2.45,
+		SKU:         "abc323",
 	},
-	&Product{
-		ID: 				 2,
-		Name:        "Colombian",
-		Description: "Dark and strong coffee",
-		SKU:         "asdf4576",
+	{
+		ID:          2,
+		Name:        "Esspresso",
+		Description: "Short and strong coffee without milk",
 		Price:       1.99,
-		CreatedAt:   time.Now().UTC().String(),
-		UpdatedAt:   time.Now().UTC().String(),
+		SKU:         "fjd34",
+	},
+	{
+		ID:          3,
+		Name:        "Cappucino",
+		Description: "Short and strong coffee without milk",
+		Price:       3.50,
+		SKU:         "fjd34",
+	},
+	{
+		ID:          4,
+		Name:        "Frapuccino",
+		Description: "Short and strong coffee without milk",
+		Price:       3.99,
+		SKU:         "fjd34",
 	},
 }
