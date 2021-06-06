@@ -1,17 +1,65 @@
 package data
 
-import "testing"
+import (
+	"bytes"
+	"testing"
 
-func TestChecksValidation(t *testing.T) {
-	p := &Product{
-		Name: "latte",
-		Price: 1.49,
-		SKU: "abd-vgh-dgs",
+	"github.com/stretchr/testify/assert"
+)
+
+func TestProductMissingNameReturnsErr(t *testing.T) {
+	p := Product{
+		Price: 1.22,
 	}
 
-	err := p.Validate()
+	v := NewValidation()
+	err := v.Validate(p)
+	assert.Len(t, err, 2)
+}
 
-	if err != nil {
-		t.Fatal(err)
+func TestProductMissingPriceReturnsErr(t *testing.T) {
+	p := Product{
+		Name:  "abc",
+		Price: -1,
 	}
+
+	v := NewValidation()
+	err := v.Validate(p)
+	assert.Len(t, err, 2)
+}
+
+func TestProductInvalidSKUReturnsErr(t *testing.T) {
+	p := Product{
+		Name:  "abc",
+		Price: 1.22,
+		SKU:   "abc",
+	}
+
+	v := NewValidation()
+	err := v.Validate(p)
+	assert.Len(t, err, 1)
+}
+
+func TestValidProductDoesNOTReturnErr(t *testing.T) {
+	p := Product{
+		Name:  "abc",
+		Price: 1.22,
+		SKU:   "abc-efg-hji",
+	}
+
+	v := NewValidation()
+	err := v.Validate(p)
+	assert.Len(t, err, 0)
+}
+
+func TestProductsToJSON(t *testing.T) {
+	ps := []*Product{
+		{
+			Name: "abc",
+		},
+	}
+
+	b := bytes.NewBufferString("")
+	err := ToJSON(ps, b)
+	assert.NoError(t, err)
 }
